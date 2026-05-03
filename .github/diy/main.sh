@@ -202,7 +202,7 @@ git clone --depth 1 https://github.com/sbwml/v2ray-geodata
 
 ###git_sparse_clone openwrt-23.05 "https://github.com/openwrt/packages" "oppkgs1" net/shadowsocks-libev
 
-mv -n luciapp/* ./ ; rm -Rf luciapp
+##mv -n luciapp/* ./ ; rm -Rf luciapp
 #svn export https://github.com/coolsnowwolf/luci/trunk/libs/luci-lib-ipkg
 #svn export https://github.com/x-wrt/packages/trunk/net/nft-qos
 #svn export https://github.com/x-wrt/luci/trunk/applications/luci-app-nft-qos
