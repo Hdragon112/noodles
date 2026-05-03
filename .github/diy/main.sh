@@ -47,7 +47,8 @@ git clone --depth 1 https://github.com/jerrykuku/lua-maxminddb
 git clone --depth 1 https://github.com/sirpdboy/luci-app-advanced
 git clone --depth 1 https://github.com/sirpdboy/luci-theme-opentopd
 git clone --depth 1 https://github.com/sirpdboy/luci-app-poweroffdevice
-#git clone --depth 1 https://github.com/sirpdboy/luci-app-taskplan
+git clone --depth 1 https://github.com/sirpdboy/luci-app-taskplan
+git clone --depth 1 https://github.com/sirpdboy/luci-app-timecontrol
 git clone --depth 1 https://github.com/sirpdboy/luci-app-lucky lucik && mv -n lucik/*lucky ./ ; rm -rf lucik
 git clone --depth 1 https://github.com/sirpdboy/luci-app-partexp
 git clone --depth 1 https://github.com/sirpdboy/luci-app-netdata
