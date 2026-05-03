@@ -87,7 +87,7 @@ git clone --depth 1 https://github.com/ZeaKyX/speedtest-web
 git clone --depth 1 https://github.com/Zxilly/UA2F
 git clone --depth 1 https://github.com/Huangjoe123/luci-app-eqos
 #git clone --depth 1 https://github.com/honwen/luci-app-aliddns
-git clone --depth 1 https://github.com/immortalwrt/homeproxy luci-app-homeproxy
+#git clone --depth 1 https://github.com/immortalwrt/homeproxy luci-app-homeproxy
 #git clone --depth 1 https://github.com/muink/luci-app-dnsproxy
 #git clone --depth 1 https://github.com/ximiTech/luci-app-msd_lite
 
@@ -101,13 +101,13 @@ git clone --depth 1 https://github.com/immortalwrt/homeproxy luci-app-homeproxy
 
 git clone --depth 1 https://github.com/mingxiaoyu/luci-app-cloudflarespeedtest cloudflarespeedtest && mv -n cloudflarespeedtest/applications/* ./;rm -rf cloudflarespeedtest
 git clone --depth 1 https://github.com/doushang/luci-app-shortcutmenu luci-shortcutmenu && mv -n luci-shortcutmenu/luci-app-shortcutmenu ./ ; rm -rf luci-shortcutmenu
-git clone --depth 1 https://github.com/sbilly/netmaker-openwrt && mv -n netmaker-openwrt/netmaker ./; rm -rf netmaker-openwrt
+#git clone --depth 1 https://github.com/sbilly/netmaker-openwrt && mv -n netmaker-openwrt/netmaker ./; rm -rf netmaker-openwrt
 #git clone --depth 1 https://github.com/coolsnowwolf/packages && mv -n packages/multimedia/UnblockNeteaseMusic-Go packages/net/msd_lite ./ ; rm -rf packages
 git clone --depth 1 https://github.com/gSpotx2f/luci-app-internet-detector
 
 #git clone --depth 1 https://github.com/zerolabnet/luci-app-torbp
 #git clone --depth 1 https://github.com/muink/luci-app-tinyfilemanager
-git clone --depth 1 https://github.com/sbwml/luci-app-airconnect airconnect1 && mv airconnect1/* ./ && rm -rf airconnect1
+#git clone --depth 1 https://github.com/sbwml/luci-app-airconnect airconnect1 && mv airconnect1/* ./ && rm -rf airconnect1
 git clone --depth 1 https://github.com/sirpdboy/luci-theme-kucat
 #git clone --depth 1 https://github.com/blueberry-pie-11/luci-app-natmap
 #git clone --depth 1 https://github.com/QiuSimons/luci-app-daed-next daed1 && mvdir daed1
