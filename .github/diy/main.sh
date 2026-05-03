@@ -20,10 +20,13 @@ rm -rf $1
 #git clone --depth 1 https://github.com/HDragon8/A-default-settings
 #git clone --depth 1 https://github.com/timsaya/luci-app-bandix bandix && mv -n bandix/luci-app-bandix ./;rm -rf bandix
 #git clone --depth 1 https://github.com/timsaya/openwrt-bandix
-git clone --depth 1 https://github.com/Openwrt-Passwall/openwrt-passwall2 passwall2 && mv -n passwall2/luci-app-passwall2 ./;rm -rf passwall2
-git clone --depth 1 https://github.com/Openwrt-Passwall/openwrt-passwall passwall1 && mv -n passwall1/luci-app-passwall  ./; rm -rf passwall1
-git clone --depth 1 https://github.com/Openwrt-Passwall/openwrt-passwall-packages && mvdir openwrt-passwall-packages
-git clone --depth 1 https://github.com/fw876/helloworld && mvdir helloworld
+
+###passwall
+#git clone --depth 1 https://github.com/Openwrt-Passwall/openwrt-passwall2 passwall2 && mv -n passwall2/luci-app-passwall2 ./;rm -rf passwall2
+#git clone --depth 1 https://github.com/Openwrt-Passwall/openwrt-passwall passwall1 && mv -n passwall1/luci-app-passwall  ./; rm -rf passwall1
+#git clone --depth 1 https://github.com/Openwrt-Passwall/openwrt-passwall-packages && mvdir openwrt-passwall-packages
+#git clone --depth 1 https://github.com/fw876/helloworld && mvdir helloworld
+#git clone --depth 1 https://github.com/fw876/helloworld && mv -n helloworld/luci-app-ssr-plus ./ ; rm -rf helloworld
 #git clone --depth 1 https://github.com/vernesong/OpenClash && mv -n OpenClash/luci-app-openclash ./; rm -rf OpenClash
 
 git clone --depth 1 https://github.com/ElvenP/luci-app-onliner
@@ -62,7 +65,7 @@ git clone --depth 1 https://github.com/NateLol/luci-app-oled
 git clone --depth 1 https://github.com/walkingsky/luci-wifidog luci-app-wifidog
 git clone --depth 1 https://github.com/CCnut/feed-netkeeper && mvdir feed-netkeeper
 
-git clone --depth 1 https://github.com/kenzok8/wall && mv -n wall/* ./ ; rm -rf wall
+#git clone --depth 1 https://github.com/kenzok8/wall && mv -n wall/* ./ ; rm -rf wall
 #git clone --depth 1 https://github.com/peter-tank/luci-app-fullconenat
 
 git clone --depth 1 https://github.com/pymumu/luci-app-smartdns
@@ -78,7 +81,6 @@ git clone --depth 1 https://github.com/linkease/istore && mv -n istore/luci/* ./
 #git clone --depth 1 https://github.com/AlexZhuo/luci-app-bandwidthd
 git clone --depth 1 https://github.com/Diciya/luci-app-broadbandacc
 git clone --depth 1 https://github.com/gSpotx2f/luci-app-log
-#git clone --depth 1 https://github.com/linkease/openwrt-app-actions
 
 git clone --depth 1 https://github.com/ZeaKyX/luci-app-speedtest-web
 git clone --depth 1 https://github.com/ZeaKyX/speedtest-web
@@ -90,12 +92,12 @@ git clone --depth 1 https://github.com/immortalwrt/homeproxy luci-app-homeproxy
 #git clone --depth 1 https://github.com/ximiTech/luci-app-msd_lite
 
 #git clone --depth 1 https://github.com/sbwml/luci-app-openlist2 openwrt-openlist2 && mv -n openwrt-openlist2/*openlist2 ./ ; rm -rf openwrt-openlist2
-git clone --depth 1 https://github.com/sbwml/luci-app-qbittorrent openwrt-qb && mv -n openwrt-qb/* ./ ; rm -rf openwrt-qb
+#git clone --depth 1 https://github.com/sbwml/luci-app-qbittorrent openwrt-qb && mv -n openwrt-qb/* ./ ; rm -rf openwrt-qb
 
 #git clone --depth 1 https://github.com/messense/aliyundrive-webdav aliyundrive && mv -n aliyundrive/openwrt/* ./ ; rm -rf aliyundrive
 #git clone --depth 1 https://github.com/messense/aliyundrive-fuse aliyundrive && mv -n aliyundrive/openwrt/* ./;rm -rf aliyundrive
 #git clone --depth 1 https://github.com/kenzok8/litte && mv -n litte/luci-theme-atmaterial_new litte/luci-theme-tomato ./ ; rm -rf litte
-git clone --depth 1 https://github.com/fw876/helloworld && mv -n helloworld/luci-app-ssr-plus ./ ; rm -rf helloworld
+
 
 git clone --depth 1 https://github.com/mingxiaoyu/luci-app-cloudflarespeedtest cloudflarespeedtest && mv -n cloudflarespeedtest/applications/* ./;rm -rf cloudflarespeedtest
 git clone --depth 1 https://github.com/doushang/luci-app-shortcutmenu luci-shortcutmenu && mv -n luci-shortcutmenu/luci-app-shortcutmenu ./ ; rm -rf luci-shortcutmenu
