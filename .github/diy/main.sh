@@ -29,6 +29,11 @@ git clone --depth 1 https://github.com/fw876/helloworld && mvdir helloworld
 #git clone --depth 1 https://github.com/fw876/helloworld && mv -n helloworld/luci-app-ssr-plus ./ ; rm -rf helloworld
 #git clone --depth 1 https://github.com/vernesong/OpenClash && mv -n OpenClash/luci-app-openclash ./; rm -rf OpenClash
 
+#timewol
+git clone --depth 1 https://github.com/Lienol/openwrt-package
+cp -rf ./openwrt-package/luci-app-control-timewol ./luci-app-control-timewol
+rm -rf openwrt-package
+
 git clone --depth 1 https://github.com/ElvenP/luci-app-onliner
 git clone --depth 1 https://github.com/rufengsuixing/luci-app-usb3disable
 git clone --depth 1 https://github.com/ilxp/luci-app-ikoolproxy
