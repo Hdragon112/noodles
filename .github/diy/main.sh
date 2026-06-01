@@ -17,7 +17,7 @@ mv -n `find $1/* -maxdepth 0 -type d` ./
 rm -rf $1
 }
 #git clone --depth 1 https://github.com/HDragon8/Adefault-settings Adefault-settings
-# git clone --depth 1 https://github.com/Hdragon112/A-default-settings
+git clone --depth 1 -b OP25 https://github.com/Hdragon112/A-default-settings
 #git clone --depth 1 https://github.com/timsaya/luci-app-bandix bandix && mv -n bandix/luci-app-bandix ./;rm -rf bandix
 #git clone --depth 1 https://github.com/timsaya/openwrt-bandix
 
