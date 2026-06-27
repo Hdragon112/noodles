@@ -1605,28 +1605,36 @@ function vps_domain_exclude(domain)
 end
 
 function parse_realm_uri(uri)
-	if type(uri) ~= "string" then return nil end
-	-- realm://token@server/realm_id?query
-	local token, server_url, realm_id, query = trim(uri):match("^realm://([^@]+)@([^/]+)/([^?]*)%??(.*)$")
+	uri = trim(uri)
+	if uri == "" then return nil end
+	-- realm[+http]://token@server/realm_id?query
+	local scheme = (uri:match("^realm%+http://") and "realm+http") or (uri:match("^realm://") and "realm")
+	if not scheme then return nil end
+	uri = uri:gsub("^realm%+http://", ""):gsub("^realm://", "")
+	local token, server_url, realm_id, query = uri:match("^([^@]+)@([^/]+)/([^?]*)%??(.*)$")
 	if not token or not server_url or not realm_id then return nil end
 	realm_id = realm_id:gsub("/+$", "")
+	local address, port = server_url:match("^%[([^%]]+)%]:(%d+)$") --ipv6:port
+	if not address then
+		address, port = server_url:match("^([^:]+):(%d+)$") --ipv4[domain]:port
+	end
+	address = address or server_url:match("^%[([^%]]+)%]$") or server_url
+	port = tonumber(port) or (scheme == "realm+http" and 80 or 443)
 	local realm = {
+		scheme = scheme,
 		token = token,
 		server_url = server_url,
+		address = address,
+		port = port,
 		realm_id = realm_id
 	}
 	-- 解析 query 中的 stun=
-	if query and query ~= "" then
-		local stun_servers = {}
-		for key, value in query:gmatch("([^&=?]+)=([^&]+)") do
-			if key == "stun" and value ~= "" then
-				stun_servers[#stun_servers + 1] = value
-			end
-		end
-		if #stun_servers > 0 then
-			realm.stun_servers = stun_servers
-		end
+	local stun_servers
+	for v in (query or ""):gmatch("[Ss][Tt][Uu][Nn]=([^&]+)") do
+		stun_servers = stun_servers or {}
+		stun_servers[#stun_servers + 1] = v
 	end
+	realm.stun_servers = stun_servers
 	return realm
 end
 
