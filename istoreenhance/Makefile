@@ -11,7 +11,7 @@ PKG_ARCH_ISTOREENHANCE:=$(ARCH)
 
 PKG_NAME:=istoreenhance
 # use PKG_SOURCE_DATE instead of PKG_VERSION for compitable
-PKG_SOURCE_DATE:=0.7.5
+PKG_SOURCE_DATE:=0.8.4
 PKG_RELEASE:=1
 ARCH_HEXCODE:=
 ifeq ($(ARCH),x86_64)
@@ -25,10 +25,11 @@ ARCH_HEXCODE=1b0c
 endif
 PKG_SOURCE_VERSION:=$(ARCH_HEXCODE)
 PKG_SOURCE:=iStoreEnhance-binary-$(PKG_SOURCE_DATE).tar.gz
-PKG_SOURCE_URL:=http://dl.istoreos.com/binary/kspeeder/
-PKG_HASH:=11468101a3a65f96f7a19a28e20fedd81417807c990373c9d97ffbcb358c24c9
+PKG_SOURCE_URL:=https://github.com/kspeeder/docker_kspeeder/releases/download/v$(PKG_SOURCE_DATE)/
+PKG_HASH:=73f2cdb72b0f073af787fc615ae1ad21d2654033e91e3fc88e7fbb9374dd53f9
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/iStoreEnhance-binary-$(PKG_SOURCE_DATE)
+KSPEEDER_WEB_ROOT:=$(PKG_BUILD_DIR)/wwwroot
 
 PKG_BUILD_PARALLEL:=1
 PKG_USE_MIPS16:=0
@@ -40,7 +41,7 @@ define Package/$(PKG_NAME)
 	CATEGORY:=Network
 	SUBMENU:=Web Servers/Proxies
 	TITLE:=iStoreEnhance - Fix some net issues for istore
-	DEPENDS:=@(arm||x86_64||aarch64)
+	DEPENDS:=@(arm||x86_64||aarch64) +linkease-app-entry +ks-cli
 	PKGARCH:=all
 	URL:=https://www.kspeeder.com/
 endef
@@ -61,6 +62,19 @@ if [ -z "$${IPKG_INSTROOT}" ]; then
 fi
 endef
 
+define Package/$(PKG_NAME)/prerm
+#!/bin/sh
+if [ "$${IPKG_INSTROOT}" = "" ]; then
+	if [ "$$(readlink /usr/share/linkeasefull/desktop-apps.d/20-kspeeder.json 2>/dev/null)" = "/usr/share/kspeeder/kspeeder-plugin.json" ]; then
+		rm -f /usr/share/linkeasefull/desktop-apps.d/20-kspeeder.json
+	fi
+	if [ "$$(readlink /usr/share/linkease/apps.d/20-kspeeder.json 2>/dev/null)" = "/usr/share/kspeeder/kspeeder-plugin.json" ]; then
+		rm -f /usr/share/linkease/apps.d/20-kspeeder.json
+	fi
+fi
+exit 0
+endef
+
 define Build/Configure
 endef
 
@@ -68,11 +82,21 @@ define Build/Compile
 endef
 
 define Package/$(PKG_NAME)/install
-	$(INSTALL_DIR) $(1)/usr/sbin $(1)/etc/config $(1)/etc/init.d $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/usr/sbin $(1)/etc/config $(1)/etc/init.d $(1)/etc/uci-defaults $(1)/usr/share/kspeeder/www $(1)/usr/share/linkease/apps.d $(1)/usr/share/linkeasefull/desktop-apps.d
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/iStoreEnhance.$(PKG_ARCH_ISTOREENHANCE) $(1)/usr/sbin/iStoreEnhance
 	$(INSTALL_CONF) ./files/istoreenhance.config $(1)/etc/config/istoreenhance
 	$(INSTALL_BIN) ./files/istoreenhance.init $(1)/etc/init.d/istoreenhance
 	$(INSTALL_BIN) ./files/istoreenhance.uci-default $(1)/etc/uci-defaults/istoreenhance
+	$(INSTALL_DATA) ./files/kspeeder-plugin.json $(1)/usr/share/kspeeder/kspeeder-plugin.json
+	if [ -d "$(KSPEEDER_WEB_ROOT)" ] && [ -f "$(KSPEEDER_WEB_ROOT)/desktop-entry.js" ]; then \
+		$(CP) $(KSPEEDER_WEB_ROOT)/* $(1)/usr/share/kspeeder/www/; \
+	else \
+		$(INSTALL_DATA) ./files/www/desktop-entry.js $(1)/usr/share/kspeeder/www/desktop-entry.js; \
+		$(INSTALL_DATA) ./files/www/index.html $(1)/usr/share/kspeeder/www/index.html; \
+	fi
+	$(INSTALL_DATA) ./files/logo.png $(1)/usr/share/kspeeder/www/logo.png
+	ln -sf /usr/share/kspeeder/kspeeder-plugin.json $(1)/usr/share/linkeasefull/desktop-apps.d/20-kspeeder.json
+	ln -sf /usr/share/kspeeder/kspeeder-plugin.json $(1)/usr/share/linkease/apps.d/20-kspeeder.json
 endef
 
 $(eval $(call BuildPackage,$(PKG_NAME)))

@@ -4,12 +4,31 @@ require "luci.sys"
 local ucursor = require "luci.model.uci".cursor()
 local json = require "luci.jsonc"
 
-local server_section = arg[1]
-local proto          = arg[2] or "tcp"
-local local_port     = arg[3] or "0"
-local socks_port     = arg[4] or "0"
+-- An omitted value reaches us either as a missing argument or as an empty
+-- string, depending on whether the caller quoted the expansion. Empty strings
+-- are truthy in Lua, so "arg[n] or default" alone does not cover both.
+local function argv(n, default)
+	local value = arg[n]
+	if value == nil or value == "" then
+		return default
+	end
+	return value
+end
 
-local chain          = arg[5] or "0"
+local server_section = arg[1]
+local proto          = argv(2, "tcp")
+local local_port     = argv(3, "0")
+local socks_port     = argv(4, "0")
+
+local chain          = argv(5, "0")
+
+-- trim
+local function trim(text)
+	if not text or text == "" then
+		return ""
+	end
+	return (text:gsub("^%s*(.-)%s*$", "%1"))
+end
 
 -- 辅助函数：拆分字符串（若 luci.util 未加载则定义）
 local function split(str, pat)
@@ -28,15 +47,27 @@ end
 local chain_local_port = split(chain, "/")[2] or "0"
 
 local server = ucursor:get_all("shadowsocksr", server_section)
+-- AnyTLS subscriptions previously used a standalone type with no launcher.
+if server.type == "anytls" then
+	server.type = "v2ray"
+	server.v2ray_protocol = "anytls"
+end
+if server.v2ray_protocol == "anytls" and server.tls == nil then
+	server.tls = "1"
+end
 local socks_server = ucursor:get_all("shadowsocksr", "@socks5_proxy[0]") or {}
 local xray_fragment = ucursor:get_all("shadowsocksr", "@global_xray_fragment[0]") or {}
 local xray_noise = ucursor:get_all("shadowsocksr", "@xray_noise_packets[0]") or {}
 local default_node_local_port = ucursor:get_first("shadowsocksr", "global", "default_node_local_port", "1234")
 local dns_mode = ucursor:get_first("shadowsocksr", "global", "pdnsd_enable", "0")
+local ipv6_support = ucursor:get_first("shadowsocksr", "global", "ipv6_support", "0") == "1"
+local redir_address = ipv6_support and "::" or "0.0.0.0"
+local redir_host = ipv6_support and "[::]" or "0.0.0.0"
 local dns_ipv4_only = ucursor:get_first("shadowsocksr", "global", "filter_aaaa")
 if not dns_ipv4_only or dns_ipv4_only == "" then
 	dns_ipv4_only = ucursor:get_first("shadowsocksr", "global", "mosdns_ipv6", "1")
 end
+if ipv6_support then dns_ipv4_only = "0" end
 local builtin_dns_server = ucursor:get_first("shadowsocksr", "global", "tunnel_forward", "8.8.4.4:53")
 local outbound_settings = nil
 local xray_version = nil
@@ -54,12 +85,20 @@ if server.type == "ss-rust" then
 end
 
 local function parse_realm_uri(uri)
-	if type(uri) ~= "string" then return nil end
+	uri = trim(uri)
+	if uri == "" then return nil end
 	-- realm[+http]://token@server/realm_id?query
-	local scheme, token, server_url, realm_id, query = trim(uri):match("^(realm%+http|realm)://([^@]+)@([^/]+)/([^?]*)%??(.*)$")
-	if not scheme or not token or not server_url or not realm_id then return nil end
+	local scheme = (uri:match("^realm%+http://") and "realm+http") or (uri:match("^realm://") and "realm")
+	if not scheme then return nil end
+	uri = uri:gsub("^realm%+http://", ""):gsub("^realm://", "")
+	local token, server_url, realm_id, query = uri:match("^([^@]+)@([^/]+)/([^?]*)%??(.*)$")
+	if not token or not server_url or not realm_id then return nil end
 	realm_id = realm_id:gsub("/+$", "")
-	local address, port = server_url:match("^%[?([^%]]+)%]?:?(%d*)$")
+	local address, port = server_url:match("^%[([^%]]+)%]:(%d+)$") --ipv6:port
+	if not address then
+		address, port = server_url:match("^([^:]+):(%d+)$") --ipv4[domain]:port
+	end
+	address = address or server_url:match("^%[([^%]]+)%]$") or server_url
 	port = tonumber(port) or (scheme == "realm+http" and 80 or 443)
 	local realm = {
 		scheme = scheme,
@@ -71,9 +110,9 @@ local function parse_realm_uri(uri)
 	}
 	-- 解析 query 中的 stun=
 	local stun_servers
-	for value in (query or ""):gmatch("[?&]?[Ss][Tt][Uu][Nn]=([^&]+)") do
-		if not stun_servers then stun_servers = {} end
-		stun_servers[#stun_servers + 1] = value
+	for v in (query or ""):gmatch("[Ss][Tt][Uu][Nn]=([^&]+)") do
+		stun_servers = stun_servers or {}
+		stun_servers[#stun_servers + 1] = v
 	end
 	realm.stun_servers = stun_servers
 	return realm
@@ -336,6 +375,16 @@ function outbound:handleIndex(index)
 		wireguard = function()
 			wireguard()
 		end,
+		anytls = function()
+			outbound_settings = {
+				address = server.server,
+				port = tonumber(server.server_port),
+				password = server.password,
+				idleSessionCheckInterval = tonumber(server.anytls_idle_session_check_interval),
+				idleSessionTimeout = tonumber(server.anytls_idle_session_timeout),
+				minIdleSession = tonumber(server.anytls_min_idle_session)
+			}
+		end,
 		hysteria2 = function()
 			xray_hysteria2()
 		end
@@ -465,7 +514,7 @@ Xray.outbounds = {
 		tag = (remarks ~= nil and remarks ~= "") and (node_id .. ":" .. remarks) or node_id,
 		-- 底层传输配置
 		streamSettings = (server.v2ray_protocol ~= "wireguard") and {
-			network = (server.v2ray_protocol == "hysteria2") and "hysteria" or (server.transport or "raw"),
+			[(xray_version_val >= 260711) and "method" or "network"] = (server.v2ray_protocol == "hysteria2") and "hysteria" or (server.transport or "raw"),
 			security = (server.xtls == '1') and "xtls" or (server.tls == '1') and "tls" or (server.reality == '1') and "reality" or nil,
 			tlsSettings = (server.tls == '1') and {
 				-- tls
@@ -483,10 +532,7 @@ Xray.outbounds = {
 				fingerprint = server.fingerprint,
 				allowInsecure = (function()
 					if server.tls_CertSha and server.tls_CertSha ~= "" then return nil end
-					if os.date("%Y.%m.%d") < "2026.06.01" then
-						return server.insecure == "1"
-					end
-					return nil
+					return server.insecure == "1"
 				end)(),
 				serverName = server.tls_host,
 				certificates = server.certificate and {
@@ -649,10 +695,18 @@ Xray.outbounds = {
 						local o = {
 							type = "salamander",
 							settings = server.salamander and {
-								password = server.salamander,
-								packetSize = server.obfs_type == "gecko" and "512-1200" or nil
+								password = server.salamander
 							} or nil
 						}
+						if server.obfs_type == "gecko" then
+							local min = tonumber(server.obfs_MinPacketSize) or 512
+							local max = tonumber(server.obfs_MaxPacketSize) or 1200
+							if min <= 0 or min > max or max > 2048 then
+								min = 512
+								max = 1200
+							end
+							o.settings.packetSize = min .. "-" .. max
+						end
 						udp[#udp+1] = o
 					end
 					if server.hysteria2_realms then
@@ -716,26 +770,11 @@ Xray.outbounds = {
 					local n_maxsplit = xray_fragment.fragment_maxSplit
 					--local domainstr = xray_noise.domainStrategy
 					finalmask.tcp = finalmask.tcp or {}
-
-					-- 辅助函数：将逗号分隔的字符串拆分为数组
-					local function split_to_array(str)
-						if not str or str == "" then return nil end
-						local result = {}
-						for value in string.gmatch(str, "[^,]+") do
-							value = value:gsub("^%s*(.-)%s*$", "%1")  -- 去除首尾空格
-							if value ~= "" then
-								table.insert(result, value)
-							end
-						end
-						return #result > 0 and result or nil
-					end
-
 					-- 构建 fragment settings
 					local fragment_settings = {
 						packets = (n_packets and n_packets ~= "") and n_packets or nil,
 						maxSplit = (n_maxsplit and n_maxsplit ~= "") and n_maxsplit or nil
 					}
-    
 					-- 根据 Xray 版本决定使用旧格式还是新格式
 					if xray_version_val <= 260601 then
 						-- 旧版本：使用 length 和 delay（单个值）
@@ -751,18 +790,30 @@ Xray.outbounds = {
 						end
 					else
 						-- 新版本：使用 lengths 和 delays（数组）
-						-- 拆分逗号分隔的字符串
+						-- 将逗号分隔的字符串拆分为数组
+						local function split_to_array(str)
+							if not str or str == "" then return nil end
+								local result = {}
+								local trimmed = trim(str)
+								if trimmed and trimmed ~= "" then
+									trimmed:gsub("[^,]+", function(w)
+									w = w:gsub("%s+", "")
+									if w ~= "" then
+										result[#result + 1] = w
+									end
+								end)
+							end
+							return #result > 0 and result or nil
+						end
 						local lengths_array = split_to_array(n_length)
 						if lengths_array then
 							fragment_settings.lengths = lengths_array
 						end
-        
 						local delays_array = split_to_array(n_delay)
 						if delays_array then
 							fragment_settings.delays = delays_array
 						end
 					end
-    
 					finalmask.tcp[#finalmask.tcp + 1] = {
 						type = "fragment",
 						settings = fragment_settings
@@ -814,10 +865,10 @@ Xray.outbounds = {
 				tcpcongestion = server.custom_tcpcongestion, -- 连接服务器节点的 TCP 拥塞控制算法
 				-- 出站的 dialerProxy（与 fragment 中的 tag 保持一致）
 				dialerProxy = (xray_fragment.fragment == "1" or xray_fragment.noise == "1") and
-				              ((remarks ~= nil and remarks ~= "") and (node_id .. "." .. remarks) or node_id) or nil
+				              ((remarks and remarks ~= "") and (node_id .. "." .. remarks) or ("direct" .. "." .. node_id)) or nil
 			}
 		} or nil,
-		mux = (server.v2ray_protocol ~= "hysteria2" and server.v2ray_protocol ~= "wireguard") and {
+		mux = (server.v2ray_protocol ~= "hysteria2" and server.v2ray_protocol ~= "wireguard" and server.v2ray_protocol ~= "anytls") and {
 			-- mux
 			enabled = (server.mux == "1"), -- Mux
 			concurrency = (server.mux == "1" and (tonumber(server.concurrency) or -1)) or nil, -- TCP 最大并发连接数
@@ -851,7 +902,7 @@ if xray_fragment.fragment ~= "0" or (xray_fragment.noise ~= "0" and xray_noise.e
 	local n_domainstrategy = xray_noise.domainStrategy
 	table.insert(Xray.outbounds, {
 		protocol = "freedom",
-		tag = (remarks ~= nil and remarks ~= "") and (node_id .. "." .. remarks) or node_id,
+		tag = (remarks and remarks ~= "") and (node_id .. "." .. remarks) or ("direct" .. "." .. node_id),
 		settings = (xray_fragment.noise == "1" and xray_noise.enabled == "1") and n_domainstrategy and n_domainstrategy ~= "" and {
 			domainStrategy = n_domainstrategy
 		} or nil,
@@ -923,13 +974,13 @@ local trojan = {
 }
 local naiveproxy = {
 	proxy = (server.username and server.password and server.server and server.server_port) and "https://" .. server.username .. ":" .. server.password .. "@" .. format_host_port(server.server, server.server_port),
-	listen = (proto == "redir") and "redir" .. "://0.0.0.0:" .. tonumber(local_port) or "socks" .. "://0.0.0.0:" .. tonumber(local_port),
+	listen = (proto == "redir") and "redir" .. "://" .. redir_host .. ":" .. tonumber(local_port) or "socks" .. "://0.0.0.0:" .. tonumber(local_port),
 	["insecure-concurrency"] = tonumber(server.concurrency) or 1
 }
 local ss = {
 	server = (server.kcp_enable == "1") and "127.0.0.1" or server.server,
 	server_port = tonumber(server.server_port),
-	local_address = "0.0.0.0",
+	local_address = redir_address,
 	local_port = tonumber(local_port),
 	mode = (proto == "tcp,udp") and "tcp_and_udp" or (proto .. "_only"),
 	password = server.password,
@@ -958,6 +1009,9 @@ local hysteria2 = {
 	bandwidth = (server.uplink_capacity or server.downlink_capacity) and {
 		up = tonumber(server.uplink_capacity) and tonumber(server.uplink_capacity) .. " mbps" or nil,
 		down = tonumber(server.downlink_capacity) and tonumber(server.downlink_capacity) .. " mbps" or nil
+	} or nil,
+	realm = (server.hysteria2_realms and server.hysteria2_realm_stun) and {
+		stunServers = server.hysteria2_realm_stun
 	} or nil,
 	socks5 = (proto:find("tcp") and tonumber(socks_port) and tonumber(socks_port) ~= 0) and {
 		listen = "0.0.0.0:" .. tonumber(socks_port),
@@ -989,18 +1043,18 @@ local hysteria2 = {
 	},
 --[[
 	tcpTProxy = (proto:find("tcp") and local_port ~= "0") and {
-		listen = "0.0.0.0:" .. tonumber(local_port)
+		listen = redir_host .. ":" .. tonumber(local_port)
 	} or nil,
 ]]--
 	tcpRedirect = (proto:find("tcp") and local_port ~= "0") and {
-		listen = "0.0.0.0:" .. tonumber(local_port)
+		listen = redir_host .. ":" .. tonumber(local_port)
 	} or nil,
 	udpTProxy = (proto:find("udp") and local_port ~= "0") and {
-		listen = "0.0.0.0:" .. tonumber(local_port)
+		listen = redir_host .. ":" .. tonumber(local_port)
 	} or nil,
 	obfs = (server.flag_obfs == "1") and {
 		type = server.obfs_type,
-		salamander = { password = server.salamander }
+		[server.obfs_type] = { password = server.salamander }
 	} or nil,
 	quic = (server.flag_quicparam == "1" ) and {
 		initStreamReceiveWindow = (server.initstreamreceivewindow and server.initstreamreceivewindow or nil),
@@ -1049,6 +1103,16 @@ local hysteria2 = {
 	fast_open = (server.fast_open == "1") and true or false,
 	lazy = (server.lazy_mode == "1") and true or false
 }
+if hysteria2.obfs and hysteria2.obfs.type == "gecko" then
+	local min = tonumber(server.obfs_MinPacketSize) or 512
+	local max = tonumber(server.obfs_MaxPacketSize) or 1200
+	if min <= 0 or min > max or max > 2048 then
+        	min = 512
+        	max = 1200
+	end
+	hysteria2.obfs.gecko.minPacketSize = min
+	hysteria2.obfs.gecko.maxPacketSize = max
+end
 local shadowtls = {
 	client = {
 		server_addr = server.server_port and format_host_port(server.server, server.server_port) or nil,
@@ -1064,7 +1128,7 @@ local shadowtls = {
 local chain_sslocal = {
 	locals = local_port ~= "0" and {
 		{
-			local_address = "0.0.0.0",
+			local_address = redir_address,
 			local_port = (chain_local_port == "0" and effective_node_local_port or tonumber(chain_local_port)),
 			mode = (proto:find("tcp,udp") and "tcp_and_udp") or proto .. "_only",
 			protocol = "redir",
@@ -1074,12 +1138,12 @@ local chain_sslocal = {
 		},
 		socks_port ~= "0" and {
 			protocol = "socks",
-			local_address = "0.0.0.0",
+			local_address = redir_address,
 			local_port = tonumber(socks_port)
 		} or nil
 	} or {{
 		protocol = "socks",
-		local_address = "0.0.0.0",
+		local_address = redir_address,
 		local_port = tonumber(socks_port)
 	}},
 	servers = {

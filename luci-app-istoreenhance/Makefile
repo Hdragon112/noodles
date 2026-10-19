@@ -6,13 +6,11 @@
 include $(TOPDIR)/rules.mk
 
 LUCI_TITLE:=LuCI support for KSpeeder
-LUCI_DEPENDS:=+istoreenhance
+LUCI_DEPENDS:=+istoreenhance +luci-lib-linkeaseauth +linkease-app-entry
 LUCI_PKGARCH:=all
-PKG_VERSION:=0.6.6-r1
-# PKG_RELEASE MUST be empty for luci.mk
-PKG_RELEASE:=
+PKG_VERSION:=0.8.4
+PKG_RELEASE:=1
 
 include $(TOPDIR)/feeds/luci/luci.mk
 
 # call BuildPackage - OpenWrt buildroot signature
-
